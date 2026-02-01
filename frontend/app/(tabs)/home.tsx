@@ -98,7 +98,7 @@ export default function HomeScreen() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <MaterialCommunityIcons name="calendar-check" size={24} color="#4CAF50" />
-          <Text style={styles.cardTitle}>Desafio 21 Dias</Text>
+          <Text style={styles.cardTitle}>Desafio 21 Dias - Método Isabela Ansanello</Text>
         </View>
         <View style={styles.progressContainer}>
           <Text style={styles.progressText}>
