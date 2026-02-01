@@ -99,8 +99,6 @@ export default function ActivateScreen() {
   );
 }
 
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
