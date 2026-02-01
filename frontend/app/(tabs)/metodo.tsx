@@ -3,12 +3,12 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal,
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../services/api';
 import { format } from 'date-fns';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function MetodoScreen() {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<any>(null);
-  const [selectedDay, setSelectedDay] = useState<any>(null);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [todayRecord, setTodayRecord] = useState<any>(null);
   const [goalsModalVisible, setGoalsModalVisible] = useState(false);
   const [goals, setGoals] = useState({
     meta_principal: '',
@@ -16,6 +16,12 @@ export default function MetodoScreen() {
     sentimento_desejado: '',
     compromisso: '',
   });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadProgress();
+    }, [])
+  );
 
   useEffect(() => {
     loadProgress();
@@ -25,6 +31,11 @@ export default function MetodoScreen() {
     try {
       const data = await api.getMethodProgress();
       setProgress(data);
+      
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const record = await api.getDailyRecord(today);
+      setTodayRecord(record);
+      
       if (!data.goals) {
         setGoalsModalVisible(true);
       }
@@ -45,14 +56,27 @@ export default function MetodoScreen() {
     }
   };
 
-  const updateDayChecklist = async (dayNumber: number, field: string, value: boolean) => {
+  const toggleChecklistItem = async (field: string, subfield: string, currentValue: boolean) => {
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
-      await api.createOrUpdateDailyRecord({
+      const updateData: any = {
         date: today,
-        day_number: dayNumber,
-        [field]: value,
-      });
+        day_number: todayRecord?.day_number || 1,
+      };
+      
+      if (field === 'checklist_alimentar') {
+        updateData.checklist_alimentar = {
+          ...(todayRecord?.checklist_alimentar || {}),
+          [subfield]: !currentValue,
+        };
+      } else if (field === 'praticas_diarias') {
+        updateData.praticas_diarias = {
+          ...(todayRecord?.praticas_diarias || {}),
+          [subfield]: !currentValue,
+        };
+      }
+      
+      await api.createOrUpdateDailyRecord(updateData);
       loadProgress();
     } catch (error) {
       console.error('Failed to update checklist:', error);
@@ -91,37 +115,94 @@ export default function MetodoScreen() {
               <Text style={styles.goalLabel}>Meta Principal:</Text>
               <Text style={styles.goalValue}>{progress.goals.meta_principal}</Text>
             </View>
-            <View style={styles.goalItem}>
-              <Text style={styles.goalLabel}>Desejo Transformar:</Text>
-              <Text style={styles.goalValue}>{progress.goals.desejo_transformar}</Text>
-            </View>
+            <TouchableOpacity style={styles.editButton} onPress={() => setGoalsModalVisible(true)}>
+              <Text style={styles.editButtonText}>Editar Metas</Text>
+            </TouchableOpacity>
           </View>
         )}
 
+        {/* Checklist Alimentar */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>✓ Checklist Alimentar Diário</Text>
+          {[
+            { key: 'sem_acucar', label: 'Sem açúcar refinado' },
+            { key: 'sem_alcool', label: 'Sem álcool' },
+            { key: 'sem_gluten', label: 'Sem glúten' },
+            { key: 'sem_refrigerante', label: 'Sem refrigerante' },
+            { key: 'alimentos_naturais', label: 'Comer alimentos naturais' },
+            { key: 'evitar_industrializados', label: 'Evitar industrializados' },
+            { key: 'frutas_verduras', label: 'Consumir frutas e verduras' },
+            { key: 'mastigar_atencao', label: 'Mastigar com atenção' },
+          ].map((item) => {
+            const checked = todayRecord?.checklist_alimentar?.[item.key] || false;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={styles.checklistItem}
+                onPress={() => toggleChecklistItem('checklist_alimentar', item.key, checked)}
+              >
+                <MaterialCommunityIcons
+                  name={checked ? 'check-circle' : 'circle-outline'}
+                  size={24}
+                  color={checked ? '#4CAF50' : '#CCC'}
+                />
+                <Text style={[styles.checklistLabel, checked && styles.checklistLabelChecked]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Práticas Diárias */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>💫 Práticas Diárias</Text>
+          {[
+            { key: 'agua_2l', label: 'Água 2L', icon: 'water' },
+            { key: 'exercicio', label: 'Exercício', icon: 'run' },
+            { key: 'meditacao', label: 'Meditação', icon: 'meditation' },
+            { key: 'vacuo', label: 'Vácuo Abdominal', icon: 'stomach' },
+            { key: 'gratidao', label: 'Gratidão', icon: 'heart' },
+          ].map((item) => {
+            const checked = todayRecord?.praticas_diarias?.[item.key] || false;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={styles.checklistItem}
+                onPress={() => toggleChecklistItem('praticas_diarias', item.key, checked)}
+              >
+                <MaterialCommunityIcons name={item.icon as any} size={20} color={checked ? '#4CAF50' : '#CCC'} />
+                <Text style={[styles.checklistLabel, checked && styles.checklistLabelChecked]}>
+                  {item.label}
+                </Text>
+                <MaterialCommunityIcons
+                  name={checked ? 'check-circle' : 'circle-outline'}
+                  size={24}
+                  color={checked ? '#4CAF50' : '#CCC'}
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {/* Calendário dos 21 Dias */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Calendário</Text>
+          <Text style={styles.cardTitle}>📅 Calendário de Progresso</Text>
           <View style={styles.calendar}>
             {Array.from({ length: 21 }, (_, i) => i + 1).map((day) => {
               const dayRecord = progress?.daily_records?.find((r: any) => r.day_number === day);
               const isCompleted = dayRecord?.praticas_diarias?.agua_2l &&
                 dayRecord?.praticas_diarias?.exercicio &&
-                dayRecord?.praticas_diarias?.meditacao &&
-                dayRecord?.praticas_diarias?.vacuo &&
-                dayRecord?.praticas_diarias?.gratidao;
+                dayRecord?.praticas_diarias?.meditacao;
 
               return (
-                <TouchableOpacity
+                <View
                   key={day}
                   style={[
                     styles.dayButton,
                     day <= totalDays && styles.dayButtonActive,
                     isCompleted && styles.dayButtonCompleted,
                   ]}
-                  onPress={() => {
-                    setSelectedDay(day);
-                    setModalVisible(true);
-                  }}
                 >
                   <Text
                     style={[
@@ -134,94 +215,61 @@ export default function MetodoScreen() {
                   {isCompleted && (
                     <MaterialCommunityIcons name="check" size={12} color="#FFF" style={styles.checkIcon} />
                   )}
-                </TouchableOpacity>
+                </View>
               );
             })}
           </View>
-        </View>
-
-        {/* Checklist Alimentar */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Checklist Alimentar Diário</Text>
-          <ChecklistSection
-            items={[
-              { key: 'sem_acucar', label: 'Sem açúcar refinado' },
-              { key: 'sem_alcool', label: 'Sem álcool' },
-              { key: 'sem_gluten', label: 'Sem glúten' },
-              { key: 'sem_refrigerante', label: 'Sem refrigerante' },
-              { key: 'alimentos_naturais', label: 'Comer alimentos naturais' },
-              { key: 'evitar_industrializados', label: 'Evitar industrializados' },
-              { key: 'frutas_verduras', label: 'Consumir frutas e verduras' },
-              { key: 'mastigar_atencao', label: 'Mastigar com atenção' },
-            ]}
-          />
-        </View>
-
-        {/* Práticas Diárias */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Práticas Diárias</Text>
-          <ChecklistSection
-            items={[
-              { key: 'agua_2l', label: 'Água 2L', icon: 'water' },
-              { key: 'exercicio', label: 'Exercício', icon: 'run' },
-              { key: 'meditacao', label: 'Meditação', icon: 'meditation' },
-              { key: 'vacuo', label: 'Vácuo Abdominal', icon: 'stomach' },
-              { key: 'gratidao', label: 'Gratidão', icon: 'heart' },
-            ]}
-          />
         </View>
       </ScrollView>
 
       {/* Modal de Metas */}
       <Modal visible={goalsModalVisible} animationType="slide">
         <ScrollView style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>Defina suas Metas para os 21 Dias</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Meta principal"
-            value={goals.meta_principal}
-            onChangeText={(text) => setGoals({ ...goals, meta_principal: text })}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="O que desejo transformar em mim?"
-            value={goals.desejo_transformar}
-            onChangeText={(text) => setGoals({ ...goals, desejo_transformar: text })}
-            multiline
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Como quero me sentir ao final?"
-            value={goals.sentimento_desejado}
-            onChangeText={(text) => setGoals({ ...goals, sentimento_desejado: text })}
-            multiline
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Compromisso comigo mesma"
-            value={goals.compromisso}
-            onChangeText={(text) => setGoals({ ...goals, compromisso: text })}
-            multiline
-          />
-          <TouchableOpacity style={styles.saveButton} onPress={saveGoals}>
-            <Text style={styles.saveButtonText}>Salvar Metas</Text>
-          </TouchableOpacity>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Defina suas Metas</Text>
+            {progress?.goals && (
+              <TouchableOpacity onPress={() => setGoalsModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={28} color="#666" />
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={styles.modalContent}>
+            <TextInput
+              style={styles.input}
+              placeholder="Meta principal"
+              value={goals.meta_principal}
+              onChangeText={(text) => setGoals({ ...goals, meta_principal: text })}
+            />
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="O que desejo transformar em mim?"
+              value={goals.desejo_transformar}
+              onChangeText={(text) => setGoals({ ...goals, desejo_transformar: text })}
+              multiline
+              numberOfLines={4}
+            />
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Como quero me sentir ao final?"
+              value={goals.sentimento_desejado}
+              onChangeText={(text) => setGoals({ ...goals, sentimento_desejado: text })}
+              multiline
+              numberOfLines={4}
+            />
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Compromisso comigo mesma"
+              value={goals.compromisso}
+              onChangeText={(text) => setGoals({ ...goals, compromisso: text })}
+              multiline
+              numberOfLines={4}
+            />
+            <TouchableOpacity style={styles.saveButton} onPress={saveGoals}>
+              <Text style={styles.saveButtonText}>Salvar Metas</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </Modal>
-    </View>
-  );
-}
-
-function ChecklistSection({ items }: { items: any[] }) {
-  return (
-    <View>
-      {items.map((item) => (
-        <View key={item.key} style={styles.checklistItem}>
-          {item.icon && <MaterialCommunityIcons name={item.icon} size={20} color="#4CAF50" />}
-          <Text style={styles.checklistLabel}>{item.label}</Text>
-          <MaterialCommunityIcons name="circle-outline" size={20} color="#CCC" />
-        </View>
-      ))}
     </View>
   );
 }
@@ -241,6 +289,11 @@ const styles = StyleSheet.create({
   goalItem: { marginBottom: 12 },
   goalLabel: { fontSize: 12, color: '#999', marginBottom: 4 },
   goalValue: { fontSize: 14, color: '#333' },
+  editButton: { backgroundColor: '#E8F5E9', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 },
+  editButtonText: { color: '#4CAF50', fontWeight: '600' },
+  checklistItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
+  checklistLabel: { flex: 1, fontSize: 14, color: '#666' },
+  checklistLabelChecked: { color: '#4CAF50', fontWeight: '500' },
   calendar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   dayButton: { width: 50, height: 50, backgroundColor: '#E0E0E0', borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
   dayButtonActive: { backgroundColor: '#81C784' },
@@ -248,11 +301,12 @@ const styles = StyleSheet.create({
   dayButtonText: { color: '#666', fontWeight: '600' },
   dayButtonTextActive: { color: '#FFF' },
   checkIcon: { position: 'absolute', bottom: 2, right: 2 },
-  checklistItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12 },
-  checklistLabel: { flex: 1, fontSize: 14, color: '#666' },
-  modalContainer: { flex: 1, backgroundColor: '#FFF', padding: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '600', marginBottom: 20 },
+  modalContainer: { flex: 1, backgroundColor: '#FFF' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E0E0E0' },
+  modalTitle: { fontSize: 20, fontWeight: '600' },
+  modalContent: { padding: 20 },
   input: { borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 16 },
+  textArea: { minHeight: 100, textAlignVertical: 'top' },
   saveButton: { backgroundColor: '#4CAF50', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 20 },
   saveButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
 });
