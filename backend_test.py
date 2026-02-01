@@ -528,6 +528,148 @@ class BackendTester:
                 f"Request failed: {str(e)}"
             )
     
+    def test_calories_today_without_auth(self):
+        """Test GET /api/calories/today without authentication"""
+        try:
+            response = requests.get(f"{self.base_url}/calories/today", timeout=10)
+            
+            if response.status_code == 401:
+                self.log_result(
+                    "GET /api/calories/today (no auth)",
+                    True,
+                    "Correctly requires authentication",
+                    {"status_code": response.status_code}
+                )
+            else:
+                self.log_result(
+                    "GET /api/calories/today (no auth)",
+                    False,
+                    f"Should return 401, got {response.status_code}",
+                    {"response": response.text}
+                )
+                
+        except Exception as e:
+            self.log_result(
+                "GET /api/calories/today (no auth)",
+                False,
+                f"Request failed: {str(e)}"
+            )
+    
+    def test_activities_today_without_auth(self):
+        """Test GET /api/activities/today without authentication"""
+        try:
+            response = requests.get(f"{self.base_url}/activities/today", timeout=10)
+            
+            if response.status_code == 401:
+                self.log_result(
+                    "GET /api/activities/today (no auth)",
+                    True,
+                    "Correctly requires authentication",
+                    {"status_code": response.status_code}
+                )
+            else:
+                self.log_result(
+                    "GET /api/activities/today (no auth)",
+                    False,
+                    f"Should return 401, got {response.status_code}",
+                    {"response": response.text}
+                )
+                
+        except Exception as e:
+            self.log_result(
+                "GET /api/activities/today (no auth)",
+                False,
+                f"Request failed: {str(e)}"
+            )
+    
+    def test_water_intake_without_auth(self):
+        """Test PUT /api/daily/water without authentication"""
+        try:
+            response = requests.put(f"{self.base_url}/daily/water?water_ml=500", timeout=10)
+            
+            if response.status_code == 401:
+                self.log_result(
+                    "PUT /api/daily/water (no auth)",
+                    True,
+                    "Correctly requires authentication",
+                    {"status_code": response.status_code}
+                )
+            else:
+                self.log_result(
+                    "PUT /api/daily/water (no auth)",
+                    False,
+                    f"Should return 401, got {response.status_code}",
+                    {"response": response.text}
+                )
+                
+        except Exception as e:
+            self.log_result(
+                "PUT /api/daily/water (no auth)",
+                False,
+                f"Request failed: {str(e)}"
+            )
+    
+    def test_invalid_endpoints(self):
+        """Test invalid/non-existent endpoints"""
+        try:
+            # Test non-existent endpoint
+            response = requests.get(f"{self.base_url}/invalid/endpoint", timeout=10)
+            
+            if response.status_code == 404:
+                self.log_result(
+                    "Invalid Endpoint Handling",
+                    True,
+                    "Correctly returns 404 for non-existent endpoints",
+                    {"status_code": response.status_code}
+                )
+            else:
+                self.log_result(
+                    "Invalid Endpoint Handling",
+                    False,
+                    f"Should return 404, got {response.status_code}",
+                    {"response": response.text}
+                )
+                
+        except Exception as e:
+            self.log_result(
+                "Invalid Endpoint Handling",
+                False,
+                f"Request failed: {str(e)}"
+            )
+    
+    def test_cors_headers(self):
+        """Test CORS headers are properly set"""
+        try:
+            response = requests.options(f"{self.base_url}/calories/foods", timeout=10)
+            
+            cors_headers = {
+                'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+                'access-control-allow-methods': response.headers.get('access-control-allow-methods'),
+                'access-control-allow-headers': response.headers.get('access-control-allow-headers'),
+            }
+            
+            if cors_headers['access-control-allow-origin']:
+                self.log_result(
+                    "CORS Headers",
+                    True,
+                    "CORS headers are properly configured",
+                    {"cors_headers": {k: v for k, v in cors_headers.items() if v}}
+                )
+            else:
+                self.log_result(
+                    "CORS Headers",
+                    False,
+                    "CORS headers not found or improperly configured",
+                    {"headers": dict(response.headers)}
+                )
+                
+        except Exception as e:
+            self.log_result(
+                "CORS Headers",
+                False,
+                f"Request failed: {str(e)}"
+            )
+    
     def test_server_health(self):
         """Test if server is running and responding"""
         try:
