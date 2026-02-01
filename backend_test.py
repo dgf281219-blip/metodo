@@ -987,6 +987,17 @@ class BackendTester:
         print("\n📊 Testing Method 21 Days Endpoints:")
         self.test_method_progress_without_auth()
         
+        # Test additional endpoints
+        print("\n🔍 Testing Additional Endpoints:")
+        self.test_calories_today_without_auth()
+        self.test_activities_today_without_auth()
+        self.test_water_intake_without_auth()
+        
+        # Test edge cases and error handling
+        print("\n⚠️ Testing Edge Cases and Error Handling:")
+        self.test_invalid_endpoints()
+        self.test_cors_headers()
+        
         # Summary
         print("\n" + "=" * 60)
         print("📊 TEST SUMMARY:")
