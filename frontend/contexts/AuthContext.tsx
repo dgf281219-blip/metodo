@@ -28,8 +28,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkExistingSession();
+    initAuth();
   }, []);
+
+  const initAuth = async () => {
+    try {
+      // Check for session_id in URL (web redirect)
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const hash = window.location.hash;
+        const search = window.location.search;
+        
+        let session_id = null;
+        if (hash.includes('session_id=')) {
+          session_id = hash.split('session_id=')[1].split('&')[0];
+        } else if (search.includes('session_id=')) {
+          session_id = search.split('session_id=')[1].split('&')[0];
+        }
+
+        if (session_id) {
+          console.log('Processing session_id from URL...');
+          await handleAuthRedirect(session_id);
+          // Clean URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+      }
+
+      // Check existing session
+      await checkExistingSession();
+    } catch (error) {
+      console.error('Init auth error:', error);
+      setLoading(false);
+    }
+  };
 
   const checkExistingSession = async () => {
     try {
@@ -46,6 +77,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const handleAuthRedirect = async (session_id: string) => {
+    setLoading(true);
+    try {
+      console.log('Exchanging session_id for user data...');
+      const response = await api.processSession(session_id);
+      const { user: userData, session_token } = response;
+      
+      console.log('Session processed, saving token...');
+      await AsyncStorage.setItem('session_token', session_token);
+      setAuthToken(session_token);
+      setUser(userData);
+      console.log('User authenticated:', userData.email);
+    } catch (error) {
+      console.error('Failed to process session:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const login = async () => {
     try {
       const redirectUrl = Platform.OS === 'web'
@@ -54,12 +104,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
 
+      console.log('Redirecting to auth...', authUrl);
+
       if (Platform.OS === 'web') {
         window.location.href = authUrl;
       } else {
         const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
         if (result.type === 'success' && result.url) {
-          await handleAuthRedirect(result.url);
+          const session_id = extractSessionId(result.url);
+          if (session_id) {
+            await handleAuthRedirect(session_id);
+          }
         }
       }
     } catch (error) {
@@ -67,30 +122,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const handleAuthRedirect = async (url: string) => {
-    let session_id = null;
-    
+  const extractSessionId = (url: string): string | null => {
     if (url.includes('#session_id=')) {
-      session_id = url.split('#session_id=')[1].split('&')[0];
+      return url.split('#session_id=')[1].split('&')[0];
     } else if (url.includes('?session_id=')) {
-      session_id = url.split('?session_id=')[1].split('&')[0];
+      return url.split('?session_id=')[1].split('&')[0];
     }
-
-    if (session_id) {
-      setLoading(true);
-      try {
-        const response = await api.processSession(session_id);
-        const { user: userData, session_token } = response;
-        
-        await AsyncStorage.setItem('session_token', session_token);
-        setAuthToken(session_token);
-        setUser(userData);
-      } catch (error) {
-        console.error('Failed to process session:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
+    return null;
   };
 
   const logout = async () => {
