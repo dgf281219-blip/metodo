@@ -1,9 +1,31 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    // Handle session_id on web after redirect
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      const search = window.location.search;
+      
+      if (hash.includes('session_id=') || search.includes('session_id=')) {
+        // Session will be processed by AuthContext
+        console.log('Session ID detected, processing...');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Redirect to home if already authenticated
+    if (user) {
+      router.replace('/(tabs)/home');
+    }
+  }, [user]);
 
   return (
     <View style={styles.container}>
