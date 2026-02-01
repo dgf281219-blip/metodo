@@ -328,6 +328,36 @@ async def get_user_profile(current_user: User = Depends(require_auth)):
     """Get user profile"""
     return current_user
 
+class UserProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    age: Optional[int] = None
+    weight: Optional[float] = None
+    height: Optional[float] = None
+    waist: Optional[float] = None
+    hip: Optional[float] = None
+    chest: Optional[float] = None
+
+@api_router.put("/user/profile")
+async def update_user_profile(
+    profile: UserProfileUpdate,
+    current_user: User = Depends(require_auth)
+):
+    """Update user profile"""
+    update_data = {k: v for k, v in profile.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.users.update_one(
+        {"user_id": current_user.user_id},
+        {"$set": update_data}
+    )
+    
+    updated_user = await db.users.find_one(
+        {"user_id": current_user.user_id},
+        {"_id": 0}
+    )
+    
+    return User(**updated_user)
+
 @api_router.post("/user/goals")
 async def create_user_goals(
     goals: UserGoalsCreate,
