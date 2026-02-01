@@ -3,7 +3,14 @@ export interface User {
   email: string;
   name: string;
   picture?: string;
+  age?: number;
+  weight?: number;
+  height?: number;
+  waist?: number;
+  hip?: number;
+  chest?: number;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface UserGoals {
