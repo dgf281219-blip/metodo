@@ -29,22 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     checkExistingSession();
-    
-    // Handle cold start (app opened from auth redirect)
-    Linking.getInitialURL().then(url => {
-      if (url) {
-        handleAuthRedirect(url);
-      }
-    });
-
-    // Handle hot link (app already running)
-    const subscription = Linking.addEventListener('url', ({ url }) => {
-      handleAuthRedirect(url);
-    });
-
-    return () => {
-      subscription.remove();
-    };
   }, []);
 
   const checkExistingSession = async () => {
@@ -56,22 +40,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(userData);
       }
     } catch (error) {
-      console.log('No existing session');
+      console.log('No existing session:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const login = async () => {
+    try {
+      const redirectUrl = Platform.OS === 'web'
+        ? `${window.location.origin}/`
+        : Linking.createURL('/');
+
+      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+
+      if (Platform.OS === 'web') {
+        window.location.href = authUrl;
+      } else {
+        const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+        if (result.type === 'success' && result.url) {
+          await handleAuthRedirect(result.url);
+        }
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
+  };
+
   const handleAuthRedirect = async (url: string) => {
-    // Parse session_id from URL (hash or query)
     let session_id = null;
     
-    // Try hash first (#session_id=...)
     if (url.includes('#session_id=')) {
       session_id = url.split('#session_id=')[1].split('&')[0];
-    }
-    // Try query (?session_id=...)
-    else if (url.includes('?session_id=')) {
+    } else if (url.includes('?session_id=')) {
       session_id = url.split('?session_id=')[1].split('&')[0];
     }
 
@@ -81,7 +82,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const response = await api.processSession(session_id);
         const { user: userData, session_token } = response;
         
-        // Store token
         await AsyncStorage.setItem('session_token', session_token);
         setAuthToken(session_token);
         setUser(userData);
@@ -93,38 +93,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async () => {
-    try {
-      // Get redirect URL based on platform
-      const redirectUrl = Platform.OS === 'web'
-        ? `${window.location.origin}/`
-        : Linking.createURL('/');
-
-      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-
-      if (Platform.OS === 'web') {
-        window.location.href = authUrl;
-      } else {
-        // Use WebBrowser for mobile
-        const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
-        
-        if (result.type === 'success' && result.url) {
-          await handleAuthRedirect(result.url);
-        }
-      }
-    } catch (error) {
-      console.error('Login failed:', error);
-    }
-  };
-
   const logout = async () => {
     try {
       await api.logout();
+    } catch (error) {
+      console.error('Logout API failed:', error);
+    } finally {
       await AsyncStorage.removeItem('session_token');
       setAuthToken(null);
       setUser(null);
-    } catch (error) {
-      console.error('Logout failed:', error);
     }
   };
 
