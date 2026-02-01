@@ -48,8 +48,26 @@ class User(BaseModel):
     waist: Optional[float] = None  # cm
     hip: Optional[float] = None  # cm
     chest: Optional[float] = None  # cm
+    activation_code: Optional[str] = None  # Código de ativação vinculado
+    is_active: bool = False  # Se o usuário está ativo
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+class ActivationCode(BaseModel):
+    code: str  # Código único (ex: ISA-XXXX-XXXX-XXXX)
+    is_used: bool = False
+    used_by_user_id: Optional[str] = None
+    used_by_email: Optional[str] = None
+    used_at: Optional[datetime] = None
+    created_at: datetime
+    expires_at: Optional[datetime] = None  # Opcional: código com validade
+
+class ActivationCodeCreate(BaseModel):
+    quantity: int = 1  # Quantos códigos gerar
+    expires_days: Optional[int] = None  # Dias até expirar (opcional)
+
+class ActivationCodeValidate(BaseModel):
+    code: str
 
 class SessionDataResponse(BaseModel):
     id: str
