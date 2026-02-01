@@ -757,7 +757,10 @@ async def update_water_intake(
         )
         
         if goals:
-            days_since_start = (datetime.now(timezone.utc) - goals["created_at"]).days + 1
+            goals_created = goals["created_at"]
+            if goals_created.tzinfo is None:
+                goals_created = goals_created.replace(tzinfo=timezone.utc)
+            days_since_start = (datetime.now(timezone.utc) - goals_created).days + 1
         else:
             days_since_start = 1
         
