@@ -88,8 +88,10 @@ export default function HomeScreen() {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.greeting}>Olá, {user?.name?.split(' ')[0]}!</Text>
-        <Text style={styles.date}>{format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}</Text>
+        <View style={styles.greetingContainer}>
+          <Text style={styles.greeting}>Olá, {user?.name?.split(' ')[0]}!</Text>
+          <Text style={styles.date}>{format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}</Text>
+        </View>
       </View>
 
       {/* Progresso do Desafio 21 Dias */}
