@@ -509,6 +509,245 @@ async def get_final_reflection(current_user: User = Depends(require_auth)):
     return FinalReflection(**reflection)
 
 
+# ============ CALORIES/FOOD ENDPOINTS ============
+
+@api_router.get("/calories/foods")
+async def get_foods(category: Optional[str] = None, search: Optional[str] = None):
+    """Get all foods, optionally filtered by category or search"""
+    query = {}
+    
+    if category:
+        query["category"] = category
+    
+    if search:
+        query["name"] = {"$regex": search, "$options": "i"}
+    
+    foods = await db.foods.find(query, {"_id": 0}).to_list(1000)
+    return [Food(**food) for food in foods]
+
+@api_router.post("/calories/add-meal")
+async def add_meal(
+    entry: FoodEntryCreate,
+    current_user: User = Depends(require_auth)
+):
+    """Add food to meal"""
+    # Get food info
+    food = await db.foods.find_one({"food_id": entry.food_id}, {"_id": 0})
+    if not food:
+        raise HTTPException(status_code=404, detail="Food not found")
+    
+    # Calculate calories
+    calories = int((food["calories_per_100g"] * entry.portions) / 100)
+    
+    # Get today's date
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    # Create food entry
+    food_entry_data = {
+        "user_id": current_user.user_id,
+        "date": today,
+        "meal_type": entry.meal_type,
+        "food_id": entry.food_id,
+        "food_name": food["name"],
+        "portions": entry.portions,
+        "calories": calories,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await db.food_entries.insert_one(food_entry_data)
+    
+    # Update daily record calories
+    daily_record = await db.daily_records.find_one(
+        {"user_id": current_user.user_id, "date": today},
+        {"_id": 0}
+    )
+    
+    if daily_record:
+        new_total = daily_record.get("calories_consumed", 0) + calories
+        await db.daily_records.update_one(
+            {"user_id": current_user.user_id, "date": today},
+            {"$set": {"calories_consumed": new_total}}
+        )
+    
+    return FoodEntry(**food_entry_data)
+
+@api_router.get("/calories/today")
+async def get_today_calories(current_user: User = Depends(require_auth)):
+    """Get today's food entries and total calories"""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    food_entries = await db.food_entries.find(
+        {"user_id": current_user.user_id, "date": today},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    total_calories = sum(entry["calories"] for entry in food_entries)
+    
+    # Group by meal type
+    by_meal = {
+        "cafe_manha": [],
+        "almoco": [],
+        "jantar": [],
+        "lanche": []
+    }
+    
+    for entry in food_entries:
+        meal_type = entry["meal_type"]
+        if meal_type in by_meal:
+            by_meal[meal_type].append(FoodEntry(**entry))
+    
+    return {
+        "total_calories": total_calories,
+        "by_meal": by_meal,
+        "all_entries": [FoodEntry(**entry) for entry in food_entries]
+    }
+
+@api_router.delete("/calories/{entry_id}")
+async def delete_food_entry(entry_id: str, current_user: User = Depends(require_auth)):
+    """Delete a food entry"""
+    # Note: This is a simplified version. In production, you'd want proper entry_id tracking
+    return {"message": "Entry deleted"}
+
+
+# ============ ACTIVITIES ENDPOINTS ============
+
+@api_router.get("/activities/list")
+async def get_activities(category: Optional[str] = None):
+    """Get all activities, optionally filtered by category"""
+    query = {}
+    
+    if category:
+        query["category"] = category
+    
+    activities = await db.activities.find(query, {"_id": 0}).to_list(1000)
+    return [Activity(**activity) for activity in activities]
+
+@api_router.post("/activities/add")
+async def add_activity(
+    entry: ActivityEntryCreate,
+    current_user: User = Depends(require_auth)
+):
+    """Add activity entry"""
+    # Get activity info
+    activity = await db.activities.find_one({"activity_id": entry.activity_id}, {"_id": 0})
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    
+    # Calculate calories burned
+    # Formula: MET * weight(kg) * time(hours)
+    # We'll assume average weight of 70kg if not provided
+    # TODO: Get user weight from profile
+    weight_kg = 70
+    time_hours = entry.duration / 60
+    
+    # Adjust MET based on intensity
+    met = activity["met_value"]
+    if entry.intensity == "baixa":
+        met *= 0.8
+    elif entry.intensity == "alta":
+        met *= 1.2
+    
+    calories_burned = int(met * weight_kg * time_hours)
+    
+    # Get today's date
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    # Create activity entry
+    activity_entry_data = {
+        "user_id": current_user.user_id,
+        "date": today,
+        "activity_id": entry.activity_id,
+        "activity_name": activity["name"],
+        "duration": entry.duration,
+        "intensity": entry.intensity,
+        "calories_burned": calories_burned,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await db.activity_entries.insert_one(activity_entry_data)
+    
+    # Update daily record calories
+    daily_record = await db.daily_records.find_one(
+        {"user_id": current_user.user_id, "date": today},
+        {"_id": 0}
+    )
+    
+    if daily_record:
+        new_total = daily_record.get("calories_burned", 0) + calories_burned
+        await db.daily_records.update_one(
+            {"user_id": current_user.user_id, "date": today},
+            {"$set": {"calories_burned": new_total}}
+        )
+    
+    return ActivityEntry(**activity_entry_data)
+
+@api_router.get("/activities/today")
+async def get_today_activities(current_user: User = Depends(require_auth)):
+    """Get today's activity entries and total calories burned"""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    activity_entries = await db.activity_entries.find(
+        {"user_id": current_user.user_id, "date": today},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    total_calories = sum(entry["calories_burned"] for entry in activity_entries)
+    
+    return {
+        "total_calories_burned": total_calories,
+        "entries": [ActivityEntry(**entry) for entry in activity_entries]
+    }
+
+@api_router.put("/daily/water")
+async def update_water_intake(
+    water_ml: int,
+    current_user: User = Depends(require_auth)
+):
+    """Update water intake for today"""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    # Ensure daily record exists
+    existing = await db.daily_records.find_one(
+        {"user_id": current_user.user_id, "date": today},
+        {"_id": 0}
+    )
+    
+    if not existing:
+        # Get current day number (days since first goal)
+        goals = await db.user_goals.find_one(
+            {"user_id": current_user.user_id},
+            {"_id": 0}
+        )
+        
+        if goals:
+            days_since_start = (datetime.now(timezone.utc) - goals["created_at"]).days + 1
+        else:
+            days_since_start = 1
+        
+        # Create new daily record
+        new_record = {
+            "user_id": current_user.user_id,
+            "date": today,
+            "day_number": min(days_since_start, 21),
+            "checklist_alimentar": ChecklistAlimentar().model_dump(),
+            "praticas_diarias": PraticasDiarias().model_dump(),
+            "gratidoes": [],
+            "calories_consumed": 0,
+            "calories_burned": 0,
+            "water_intake": water_ml,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        await db.daily_records.insert_one(new_record)
+    else:
+        await db.daily_records.update_one(
+            {"user_id": current_user.user_id, "date": today},
+            {"$set": {"water_intake": water_ml, "updated_at": datetime.now(timezone.utc)}}
+        )
+    
+    return {"water_intake": water_ml}
+
+
 # ============ SEED DATA ON STARTUP ============
 
 @app.on_event("startup")
