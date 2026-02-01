@@ -233,7 +233,13 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#4CAF50',
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 40,
+    alignItems: 'center',
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 12,
   },
   greeting: {
     fontSize: 24,
