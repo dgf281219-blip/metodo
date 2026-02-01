@@ -23,6 +23,41 @@ export default function SetupProfileScreen() {
     hip: '',
     chest: '',
   });
+  const [imc, setImc] = useState<number | null>(null);
+  const [imcStatus, setImcStatus] = useState('');
+
+  const calculateIMC = (weight: string, height: string) => {
+    const w = parseFloat(weight);
+    const h = parseFloat(height) / 100; // convert cm to m
+    
+    if (w > 0 && h > 0) {
+      const imcValue = w / (h * h);
+      setImc(imcValue);
+      
+      if (imcValue < 18.5) {
+        setImcStatus('Abaixo do peso');
+      } else if (imcValue >= 18.5 && imcValue < 25) {
+        setImcStatus('Peso normal');
+      } else if (imcValue >= 25 && imcValue < 30) {
+        setImcStatus('Sobrepeso');
+      } else {
+        setImcStatus('Obesidade');
+      }
+    } else {
+      setImc(null);
+      setImcStatus('');
+    }
+  };
+
+  const handleWeightChange = (text: string) => {
+    setProfile({ ...profile, weight: text });
+    calculateIMC(text, profile.height);
+  };
+
+  const handleHeightChange = (text: string) => {
+    setProfile({ ...profile, height: text });
+    calculateIMC(profile.weight, text);
+  };
 
   const handleSave = async () => {
     try {
