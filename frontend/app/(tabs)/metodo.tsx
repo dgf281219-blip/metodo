@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../services/api';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function MetodoScreen() {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<any>(null);
-  const [todayRecord, setTodayRecord] = useState<any>(null);
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [selectedDayRecord, setSelectedDayRecord] = useState<any>(null);
   const [goalsModalVisible, setGoalsModalVisible] = useState(false);
   const [goals, setGoals] = useState({
     meta_principal: '',
@@ -27,22 +28,44 @@ export default function MetodoScreen() {
     loadProgress();
   }, []);
 
+  useEffect(() => {
+    if (progress?.goals) {
+      loadDayRecord(selectedDay);
+    }
+  }, [selectedDay, progress?.goals]);
+
   const loadProgress = async () => {
     try {
       const data = await api.getMethodProgress();
       setProgress(data);
       
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const record = await api.getDailyRecord(today);
-      setTodayRecord(record);
-      
       if (!data.goals) {
         setGoalsModalVisible(true);
+      } else {
+        // Load the current day's record
+        loadDayRecord(selectedDay);
       }
     } catch (error) {
       console.error('Failed to load progress:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDayRecord = async (dayNumber: number) => {
+    try {
+      if (!progress?.goals) return;
+      
+      // Calculate the date for this day number
+      const startDate = new Date(progress.goals.created_at);
+      const targetDate = addDays(startDate, dayNumber - 1);
+      const dateString = format(targetDate, 'yyyy-MM-dd');
+      
+      const record = await api.getDailyRecord(dateString);
+      setSelectedDayRecord(record);
+    } catch (error) {
+      console.error('Failed to load day record:', error);
+      setSelectedDayRecord(null);
     }
   };
 
@@ -56,28 +79,39 @@ export default function MetodoScreen() {
     }
   };
 
+  const handleDayClick = (day: number) => {
+    setSelectedDay(day);
+  };
+
   const toggleChecklistItem = async (field: string, subfield: string, currentValue: boolean) => {
     try {
-      const today = format(new Date(), 'yyyy-MM-dd');
+      if (!progress?.goals) return;
+      
+      // Calculate the date for the selected day
+      const startDate = new Date(progress.goals.created_at);
+      const targetDate = addDays(startDate, selectedDay - 1);
+      const dateString = format(targetDate, 'yyyy-MM-dd');
+      
       const updateData: any = {
-        date: today,
-        day_number: todayRecord?.day_number || 1,
+        date: dateString,
+        day_number: selectedDay,
       };
       
       if (field === 'checklist_alimentar') {
         updateData.checklist_alimentar = {
-          ...(todayRecord?.checklist_alimentar || {}),
+          ...(selectedDayRecord?.checklist_alimentar || {}),
           [subfield]: !currentValue,
         };
       } else if (field === 'praticas_diarias') {
         updateData.praticas_diarias = {
-          ...(todayRecord?.praticas_diarias || {}),
+          ...(selectedDayRecord?.praticas_diarias || {}),
           [subfield]: !currentValue,
         };
       }
       
       await api.createOrUpdateDailyRecord(updateData);
-      loadProgress();
+      await loadProgress();
+      await loadDayRecord(selectedDay);
     } catch (error) {
       console.error('Failed to update checklist:', error);
     }
@@ -100,7 +134,7 @@ export default function MetodoScreen() {
           <Text style={styles.title}>Desafio 21 Dias</Text>
           <Text style={styles.subtitle}>Transformação Integral</Text>
           <View style={styles.progressCard}>
-            <Text style={styles.progressText}>Dia {totalDays} de 21</Text>
+            <Text style={styles.progressText}>Dia {totalDays} de 21 completados</Text>
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: `${(totalDays / 21) * 100}%` }]} />
             </View>
@@ -121,9 +155,67 @@ export default function MetodoScreen() {
           </View>
         )}
 
+        {/* Calendário dos 21 Dias - CLICÁVEL */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>📅 Calendário - Clique no dia para preencher</Text>
+          <View style={styles.calendar}>
+            {Array.from({ length: 21 }, (_, i) => i + 1).map((day) => {
+              const dayRecord = progress?.daily_records?.find((r: any) => r.day_number === day);
+              const isCompleted = dayRecord?.praticas_diarias?.agua_2l &&
+                dayRecord?.praticas_diarias?.exercicio &&
+                dayRecord?.praticas_diarias?.meditacao;
+              const isSelected = day === selectedDay;
+
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[
+                    styles.dayButton,
+                    isCompleted && styles.dayButtonCompleted,
+                    isSelected && styles.dayButtonSelected,
+                  ]}
+                  onPress={() => handleDayClick(day)}
+                >
+                  <Text
+                    style={[
+                      styles.dayButtonText,
+                      (isCompleted || isSelected) && styles.dayButtonTextActive,
+                    ]}
+                  >
+                    {day}
+                  </Text>
+                  {isCompleted && (
+                    <MaterialCommunityIcons name="check" size={12} color="#FFF" style={styles.checkIcon} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <View style={styles.legendContainer}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#E0E0E0' }]} />
+              <Text style={styles.legendText}>Pendente</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#2196F3' }]} />
+              <Text style={styles.legendText}>Selecionado</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
+              <Text style={styles.legendText}>Completo</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Indicador do Dia Selecionado */}
+        <View style={styles.selectedDayCard}>
+          <MaterialCommunityIcons name="calendar-today" size={24} color="#2196F3" />
+          <Text style={styles.selectedDayText}>Checklist do Dia {selectedDay}</Text>
+        </View>
+
         {/* Checklist Alimentar */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>✓ Checklist Alimentar Diário</Text>
+          <Text style={styles.cardTitle}>✓ Checklist Alimentar - Dia {selectedDay}</Text>
           {[
             { key: 'sem_acucar', label: 'Sem açúcar refinado' },
             { key: 'sem_alcool', label: 'Sem álcool' },
@@ -134,7 +226,7 @@ export default function MetodoScreen() {
             { key: 'frutas_verduras', label: 'Consumir frutas e verduras' },
             { key: 'mastigar_atencao', label: 'Mastigar com atenção' },
           ].map((item) => {
-            const checked = todayRecord?.checklist_alimentar?.[item.key] || false;
+            const checked = selectedDayRecord?.checklist_alimentar?.[item.key] || false;
             return (
               <TouchableOpacity
                 key={item.key}
@@ -156,7 +248,7 @@ export default function MetodoScreen() {
 
         {/* Práticas Diárias */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>💫 Práticas Diárias</Text>
+          <Text style={styles.cardTitle}>💫 Práticas Diárias - Dia {selectedDay}</Text>
           {[
             { key: 'agua_2l', label: 'Água 2L', icon: 'water' },
             { key: 'exercicio', label: 'Exercício', icon: 'run' },
@@ -164,7 +256,7 @@ export default function MetodoScreen() {
             { key: 'vacuo', label: 'Vácuo Abdominal', icon: 'stomach' },
             { key: 'gratidao', label: 'Gratidão', icon: 'heart' },
           ].map((item) => {
-            const checked = todayRecord?.praticas_diarias?.[item.key] || false;
+            const checked = selectedDayRecord?.praticas_diarias?.[item.key] || false;
             return (
               <TouchableOpacity
                 key={item.key}
@@ -183,42 +275,6 @@ export default function MetodoScreen() {
               </TouchableOpacity>
             );
           })}
-        </View>
-
-        {/* Calendário dos 21 Dias */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📅 Calendário de Progresso</Text>
-          <View style={styles.calendar}>
-            {Array.from({ length: 21 }, (_, i) => i + 1).map((day) => {
-              const dayRecord = progress?.daily_records?.find((r: any) => r.day_number === day);
-              const isCompleted = dayRecord?.praticas_diarias?.agua_2l &&
-                dayRecord?.praticas_diarias?.exercicio &&
-                dayRecord?.praticas_diarias?.meditacao;
-
-              return (
-                <View
-                  key={day}
-                  style={[
-                    styles.dayButton,
-                    day <= totalDays && styles.dayButtonActive,
-                    isCompleted && styles.dayButtonCompleted,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.dayButtonText,
-                      day <= totalDays && styles.dayButtonTextActive,
-                    ]}
-                  >
-                    {day}
-                  </Text>
-                  {isCompleted && (
-                    <MaterialCommunityIcons name="check" size={12} color="#FFF" style={styles.checkIcon} />
-                  )}
-                </View>
-              );
-            })}
-          </View>
         </View>
       </ScrollView>
 
@@ -291,16 +347,22 @@ const styles = StyleSheet.create({
   goalValue: { fontSize: 14, color: '#333' },
   editButton: { backgroundColor: '#E8F5E9', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 },
   editButtonText: { color: '#4CAF50', fontWeight: '600' },
+  calendar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  dayButton: { width: 50, height: 50, backgroundColor: '#E0E0E0', borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
+  dayButtonCompleted: { backgroundColor: '#4CAF50' },
+  dayButtonSelected: { backgroundColor: '#2196F3', borderWidth: 3, borderColor: '#1976D2' },
+  dayButtonText: { color: '#666', fontWeight: '600', fontSize: 16 },
+  dayButtonTextActive: { color: '#FFF' },
+  checkIcon: { position: 'absolute', bottom: 2, right: 2 },
+  legendContainer: { flexDirection: 'row', justifyContent: 'space-around', paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E0E0E0' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 12, height: 12, borderRadius: 6 },
+  legendText: { fontSize: 12, color: '#666' },
+  selectedDayCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#E3F2FD', marginHorizontal: 16, marginBottom: 8, padding: 12, borderRadius: 8, gap: 8 },
+  selectedDayText: { fontSize: 16, fontWeight: '600', color: '#2196F3' },
   checklistItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   checklistLabel: { flex: 1, fontSize: 14, color: '#666' },
   checklistLabelChecked: { color: '#4CAF50', fontWeight: '500' },
-  calendar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  dayButton: { width: 50, height: 50, backgroundColor: '#E0E0E0', borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
-  dayButtonActive: { backgroundColor: '#81C784' },
-  dayButtonCompleted: { backgroundColor: '#4CAF50' },
-  dayButtonText: { color: '#666', fontWeight: '600' },
-  dayButtonTextActive: { color: '#FFF' },
-  checkIcon: { position: 'absolute', bottom: 2, right: 2 },
   modalContainer: { flex: 1, backgroundColor: '#FFF' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E0E0E0' },
   modalTitle: { fontSize: 20, fontWeight: '600' },
