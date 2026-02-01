@@ -202,4 +202,46 @@ export const api = {
     });
     return response.json();
   },
+
+  // Activation Codes
+  validateActivationCode: async (code: string) => {
+    const response = await fetch(`${BACKEND_URL}/api/activation/validate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ code }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Código inválido');
+    }
+    return response.json();
+  },
+
+  generateActivationCodes: async (quantity: number, expiresDays?: number) => {
+    const response = await fetch(`${BACKEND_URL}/api/admin/generate-codes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ quantity, expires_days: expiresDays }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Erro ao gerar códigos');
+    }
+    return response.json();
+  },
+
+  listActivationCodes: async () => {
+    const response = await fetch(`${BACKEND_URL}/api/admin/codes`, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+      },
+    });
+    return response.json();
+  },
 };
