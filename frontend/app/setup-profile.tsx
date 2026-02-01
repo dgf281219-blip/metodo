@@ -119,7 +119,7 @@ export default function SetupProfileScreen() {
               <TextInput
                 style={styles.input}
                 value={profile.weight}
-                onChangeText={(text) => setProfile({ ...profile, weight: text })}
+                onChangeText={handleWeightChange}
                 keyboardType="decimal-pad"
                 placeholder="Ex: 70.5"
                 placeholderTextColor="#999"
@@ -131,13 +131,29 @@ export default function SetupProfileScreen() {
               <TextInput
                 style={styles.input}
                 value={profile.height}
-                onChangeText={(text) => setProfile({ ...profile, height: text })}
+                onChangeText={handleHeightChange}
                 keyboardType="numeric"
                 placeholder="Ex: 165"
                 placeholderTextColor="#999"
               />
             </View>
           </View>
+
+          {imc && (
+            <View style={styles.imcCard}>
+              <Text style={styles.imcLabel}>Seu IMC:</Text>
+              <Text style={styles.imcValue}>{imc.toFixed(1)}</Text>
+              <Text style={[
+                styles.imcStatus,
+                imc < 18.5 ? styles.imcLow :
+                imc < 25 ? styles.imcNormal :
+                imc < 30 ? styles.imcOverweight :
+                styles.imcObese
+              ]}>
+                {imcStatus}
+              </Text>
+            </View>
+          )}
 
           <Text style={styles.sectionTitle}>Medidas (opcional)</Text>
 
