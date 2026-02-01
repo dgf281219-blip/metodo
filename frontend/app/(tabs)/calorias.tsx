@@ -13,6 +13,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../services/api';
 import { Food } from '../../types';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function CaloriasScreen() {
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,13 @@ export default function CaloriasScreen() {
   const [foods, setFoods] = useState<Food[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+
+  // Reload data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
 
   useEffect(() => {
     loadData();
