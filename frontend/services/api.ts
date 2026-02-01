@@ -61,6 +61,18 @@ export const api = {
     return response.json();
   },
 
+  updateUserProfile: async (profile: any) => {
+    const response = await fetch(`${BACKEND_URL}/api/user/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(profile),
+    });
+    return response.json();
+  },
+
   // Daily Records
   getDailyRecord: async (date: string) => {
     const response = await fetch(`${BACKEND_URL}/api/daily/record/${date}`, {
