@@ -42,7 +42,14 @@ class User(BaseModel):
     email: str
     name: str
     picture: Optional[str] = None
+    age: Optional[int] = None
+    weight: Optional[float] = None  # kg
+    height: Optional[float] = None  # cm
+    waist: Optional[float] = None  # cm
+    hip: Optional[float] = None  # cm
+    chest: Optional[float] = None  # cm
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
 class SessionDataResponse(BaseModel):
     id: str
