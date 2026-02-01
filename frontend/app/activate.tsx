@@ -8,7 +8,8 @@ import {
   Image,
   ActivityIndicator,
   Alert,
-} from 'react';
+} from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { api } from '../services/api';
 
