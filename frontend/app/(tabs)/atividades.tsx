@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, FlatList, 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../services/api';
 import { Activity } from '../../types';
+import { format } from 'date-fns';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function AtividadesScreen() {
   const [loading, setLoading] = useState(true);
@@ -11,18 +13,27 @@ export default function AtividadesScreen() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [waterIntake, setWaterIntake] = useState(0);
 
+  // Reload data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
+
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
-      const [activitiesData, todayActivities] = await Promise.all([
+      const [activitiesData, todayActivities, dailyRecord] = await Promise.all([
         api.getActivities(),
         api.getTodayActivities(),
+        api.getDailyRecord(format(new Date(), 'yyyy-MM-dd')),
       ]);
       setActivities(activitiesData);
       setTodayData(todayActivities);
+      setWaterIntake(dailyRecord?.water_intake || 0);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -51,6 +62,8 @@ export default function AtividadesScreen() {
       await api.updateWaterIntake(newTotal);
     } catch (error) {
       console.error('Failed to update water:', error);
+      // Revert on error
+      setWaterIntake(waterIntake);
     }
   };
 
