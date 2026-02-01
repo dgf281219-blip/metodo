@@ -132,7 +132,7 @@ export default function MetodoScreen() {
       <ScrollView>
         <View style={styles.header}>
           <Text style={styles.title}>Desafio 21 Dias</Text>
-          <Text style={styles.subtitle}>Transformação Integral</Text>
+          <Text style={styles.subtitle}>Método Isabela Ansanello</Text>
           <View style={styles.progressCard}>
             <Text style={styles.progressText}>Dia {totalDays} de 21 completados</Text>
             <View style={styles.progressBar}>
