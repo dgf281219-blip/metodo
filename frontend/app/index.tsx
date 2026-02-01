@@ -22,6 +22,10 @@ export default function Index() {
   }
 
   if (user) {
+    // Check if user has completed profile setup
+    if (!user.weight || !user.height) {
+      return <Redirect href="/setup-profile" />;
+    }
     return <Redirect href="/(tabs)/home" />;
   }
 
