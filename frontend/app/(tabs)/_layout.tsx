@@ -59,7 +59,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="metodo"
         options={{
-          title: 'Desafio 21 Dias',
+          title: 'Método Isabela Ansanello',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="calendar-check" size={size} color={color} />
           ),
