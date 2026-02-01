@@ -339,6 +339,138 @@ async def logout(request: Request, response: Response, current_user: User = Depe
     return {"message": "Logged out successfully"}
 
 
+# ============ ACTIVATION CODE ENDPOINTS ============
+
+@api_router.post("/admin/generate-codes")
+async def generate_activation_codes(
+    code_request: ActivationCodeCreate,
+    current_user: User = Depends(require_auth)
+):
+    """
+    Gerar códigos de ativação (ADMIN ONLY)
+    Por segurança, apenas usuários específicos podem gerar códigos
+    """
+    # Lista de emails admin (você pode configurar)
+    ADMIN_EMAILS = [
+        "isabela@ansanello.com",  # Adicione seu email aqui
+        # Adicione mais emails admin conforme necessário
+    ]
+    
+    if current_user.email not in ADMIN_EMAILS:
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores podem gerar códigos.")
+    
+    codes_generated = []
+    
+    for _ in range(code_request.quantity):
+        # Gerar código único no formato ISA-XXXX-XXXX-XXXX
+        code = f"ISA-{uuid.uuid4().hex[:4].upper()}-{uuid.uuid4().hex[:4].upper()}-{uuid.uuid4().hex[:4].upper()}"
+        
+        # Calcular data de expiração se fornecida
+        expires_at = None
+        if code_request.expires_days:
+            expires_at = datetime.now(timezone.utc) + timedelta(days=code_request.expires_days)
+        
+        code_data = {
+            "code": code,
+            "is_used": False,
+            "used_by_user_id": None,
+            "used_by_email": None,
+            "used_at": None,
+            "created_at": datetime.now(timezone.utc),
+            "expires_at": expires_at
+        }
+        
+        await db.activation_codes.insert_one(code_data)
+        codes_generated.append(code)
+    
+    return {
+        "message": f"{len(codes_generated)} códigos gerados com sucesso",
+        "codes": codes_generated
+    }
+
+@api_router.post("/activation/validate")
+async def validate_activation_code(
+    validation: ActivationCodeValidate,
+    current_user: User = Depends(require_auth)
+):
+    """Validar e ativar código de ativação"""
+    # Verificar se usuário já está ativado
+    if current_user.is_active:
+        return {"message": "Usuário já está ativado", "is_active": True}
+    
+    # Buscar código
+    code_doc = await db.activation_codes.find_one(
+        {"code": validation.code.upper()},
+        {"_id": 0}
+    )
+    
+    if not code_doc:
+        raise HTTPException(status_code=404, detail="Código inválido")
+    
+    # Verificar se já foi usado
+    if code_doc["is_used"]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Este código já foi utilizado por {code_doc['used_by_email']}"
+        )
+    
+    # Verificar se expirou
+    if code_doc.get("expires_at"):
+        expires_at = code_doc["expires_at"]
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        
+        if expires_at < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="Este código expirou")
+    
+    # Marcar código como usado
+    await db.activation_codes.update_one(
+        {"code": validation.code.upper()},
+        {
+            "$set": {
+                "is_used": True,
+                "used_by_user_id": current_user.user_id,
+                "used_by_email": current_user.email,
+                "used_at": datetime.now(timezone.utc)
+            }
+        }
+    )
+    
+    # Ativar usuário
+    await db.users.update_one(
+        {"user_id": current_user.user_id},
+        {
+            "$set": {
+                "activation_code": validation.code.upper(),
+                "is_active": True,
+                "updated_at": datetime.now(timezone.utc)
+            }
+        }
+    )
+    
+    return {
+        "message": "Código ativado com sucesso!",
+        "is_active": True
+    }
+
+@api_router.get("/admin/codes")
+async def list_activation_codes(current_user: User = Depends(require_auth)):
+    """Listar todos os códigos de ativação (ADMIN ONLY)"""
+    ADMIN_EMAILS = [
+        "isabela@ansanello.com",
+    ]
+    
+    if current_user.email not in ADMIN_EMAILS:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    codes = await db.activation_codes.find({}, {"_id": 0}).to_list(1000)
+    
+    return {
+        "total": len(codes),
+        "codes": codes
+    }
+
+
 # ============ USER ENDPOINTS ============
 
 @api_router.get("/user/profile")
