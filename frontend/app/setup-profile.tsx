@@ -311,4 +311,39 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 14,
   },
+  imcCard: {
+    backgroundColor: '#E8F5E9',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  imcLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  imcValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    marginBottom: 4,
+  },
+  imcStatus: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  imcLow: {
+    color: '#FF9800',
+  },
+  imcNormal: {
+    color: '#4CAF50',
+  },
+  imcOverweight: {
+    color: '#FF9800',
+  },
+  imcObese: {
+    color: '#F44336',
+  },
 });
