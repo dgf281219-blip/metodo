@@ -556,6 +556,248 @@ class BackendTester:
                 f"Server is not responding: {str(e)}"
             )
     
+    def test_database_seeding(self):
+        """Test if database is properly seeded with foods and activities"""
+        try:
+            # Test foods seeding
+            response = requests.get(f"{self.base_url}/calories/foods", timeout=10)
+            if response.status_code == 200:
+                foods = response.json()
+                expected_categories = ["Frutas", "Verduras", "Grãos", "Proteínas", "Sucos", "Lanches"]
+                found_categories = set()
+                
+                for food in foods:
+                    if "category" in food:
+                        found_categories.add(food["category"])
+                
+                missing_categories = set(expected_categories) - found_categories
+                
+                if len(missing_categories) == 0:
+                    self.log_result(
+                        "Database Seeding - Foods",
+                        True,
+                        f"All food categories present: {len(foods)} foods across {len(found_categories)} categories",
+                        {"categories": list(found_categories), "total_foods": len(foods)}
+                    )
+                else:
+                    self.log_result(
+                        "Database Seeding - Foods",
+                        False,
+                        f"Missing food categories: {missing_categories}",
+                        {"found": list(found_categories), "missing": list(missing_categories)}
+                    )
+            
+            # Test activities seeding
+            response = requests.get(f"{self.base_url}/activities/list", timeout=10)
+            if response.status_code == 200:
+                activities = response.json()
+                expected_categories = ["Academia", "Cardio", "Flexibilidade", "Core", "Mente", "Esportes"]
+                found_categories = set()
+                
+                for activity in activities:
+                    if "category" in activity:
+                        found_categories.add(activity["category"])
+                
+                missing_categories = set(expected_categories) - found_categories
+                
+                if len(missing_categories) == 0:
+                    self.log_result(
+                        "Database Seeding - Activities",
+                        True,
+                        f"All activity categories present: {len(activities)} activities across {len(found_categories)} categories",
+                        {"categories": list(found_categories), "total_activities": len(activities)}
+                    )
+                else:
+                    self.log_result(
+                        "Database Seeding - Activities",
+                        False,
+                        f"Missing activity categories: {missing_categories}",
+                        {"found": list(found_categories), "missing": list(missing_categories)}
+                    )
+                    
+        except Exception as e:
+            self.log_result(
+                "Database Seeding",
+                False,
+                f"Failed to check database seeding: {str(e)}"
+            )
+    
+    def test_food_data_integrity(self):
+        """Test food data structure and required fields"""
+        try:
+            response = requests.get(f"{self.base_url}/calories/foods", timeout=10)
+            if response.status_code == 200:
+                foods = response.json()
+                
+                if not foods:
+                    self.log_result(
+                        "Food Data Integrity",
+                        False,
+                        "No foods found in database"
+                    )
+                    return
+                
+                # Check first few foods for required fields
+                required_fields = ["food_id", "name", "category", "calories_per_100g", "detox_friendly"]
+                issues = []
+                
+                for i, food in enumerate(foods[:5]):  # Check first 5 foods
+                    for field in required_fields:
+                        if field not in food:
+                            issues.append(f"Food {i+1} missing field: {field}")
+                        elif field == "calories_per_100g" and not isinstance(food[field], (int, float)):
+                            issues.append(f"Food {i+1} has invalid calories_per_100g type: {type(food[field])}")
+                        elif field == "detox_friendly" and not isinstance(food[field], bool):
+                            issues.append(f"Food {i+1} has invalid detox_friendly type: {type(food[field])}")
+                
+                if not issues:
+                    self.log_result(
+                        "Food Data Integrity",
+                        True,
+                        f"Food data structure is valid (checked {min(5, len(foods))} foods)",
+                        {"sample_food": foods[0] if foods else None}
+                    )
+                else:
+                    self.log_result(
+                        "Food Data Integrity",
+                        False,
+                        f"Food data integrity issues found: {len(issues)} issues",
+                        {"issues": issues[:3]}  # Show first 3 issues
+                    )
+            else:
+                self.log_result(
+                    "Food Data Integrity",
+                    False,
+                    f"Could not retrieve foods: {response.status_code}"
+                )
+                
+        except Exception as e:
+            self.log_result(
+                "Food Data Integrity",
+                False,
+                f"Failed to check food data integrity: {str(e)}"
+            )
+    
+    def test_activity_data_integrity(self):
+        """Test activity data structure and required fields"""
+        try:
+            response = requests.get(f"{self.base_url}/activities/list", timeout=10)
+            if response.status_code == 200:
+                activities = response.json()
+                
+                if not activities:
+                    self.log_result(
+                        "Activity Data Integrity",
+                        False,
+                        "No activities found in database"
+                    )
+                    return
+                
+                # Check first few activities for required fields
+                required_fields = ["activity_id", "name", "met_value", "category"]
+                issues = []
+                
+                for i, activity in enumerate(activities[:5]):  # Check first 5 activities
+                    for field in required_fields:
+                        if field not in activity:
+                            issues.append(f"Activity {i+1} missing field: {field}")
+                        elif field == "met_value" and not isinstance(activity[field], (int, float)):
+                            issues.append(f"Activity {i+1} has invalid met_value type: {type(activity[field])}")
+                
+                if not issues:
+                    self.log_result(
+                        "Activity Data Integrity",
+                        True,
+                        f"Activity data structure is valid (checked {min(5, len(activities))} activities)",
+                        {"sample_activity": activities[0] if activities else None}
+                    )
+                else:
+                    self.log_result(
+                        "Activity Data Integrity",
+                        False,
+                        f"Activity data integrity issues found: {len(issues)} issues",
+                        {"issues": issues[:3]}  # Show first 3 issues
+                    )
+            else:
+                self.log_result(
+                    "Activity Data Integrity",
+                    False,
+                    f"Could not retrieve activities: {response.status_code}"
+                )
+                
+        except Exception as e:
+            self.log_result(
+                "Activity Data Integrity",
+                False,
+                f"Failed to check activity data integrity: {str(e)}"
+            )
+    
+    def test_api_response_format(self):
+        """Test API response formats and content types"""
+        try:
+            # Test foods endpoint response format
+            response = requests.get(f"{self.base_url}/calories/foods", timeout=10)
+            if response.status_code == 200:
+                content_type = response.headers.get('content-type', '')
+                if 'application/json' in content_type:
+                    try:
+                        data = response.json()
+                        self.log_result(
+                            "API Response Format - Foods",
+                            True,
+                            "Correct JSON response format",
+                            {"content_type": content_type, "data_type": type(data).__name__}
+                        )
+                    except json.JSONDecodeError:
+                        self.log_result(
+                            "API Response Format - Foods",
+                            False,
+                            "Invalid JSON response",
+                            {"content_type": content_type}
+                        )
+                else:
+                    self.log_result(
+                        "API Response Format - Foods",
+                        False,
+                        f"Incorrect content type: {content_type}",
+                        {"expected": "application/json"}
+                    )
+            
+            # Test activities endpoint response format
+            response = requests.get(f"{self.base_url}/activities/list", timeout=10)
+            if response.status_code == 200:
+                content_type = response.headers.get('content-type', '')
+                if 'application/json' in content_type:
+                    try:
+                        data = response.json()
+                        self.log_result(
+                            "API Response Format - Activities",
+                            True,
+                            "Correct JSON response format",
+                            {"content_type": content_type, "data_type": type(data).__name__}
+                        )
+                    except json.JSONDecodeError:
+                        self.log_result(
+                            "API Response Format - Activities",
+                            False,
+                            "Invalid JSON response",
+                            {"content_type": content_type}
+                        )
+                else:
+                    self.log_result(
+                        "API Response Format - Activities",
+                        False,
+                        f"Incorrect content type: {content_type}",
+                        {"expected": "application/json"}
+                    )
+                    
+        except Exception as e:
+            self.log_result(
+                "API Response Format",
+                False,
+                f"Failed to check API response format: {str(e)}"
+            )
+
     def run_all_tests(self):
         """Run all backend tests"""
         print(f"🚀 Starting Backend API Tests for: {self.base_url}")
@@ -563,6 +805,13 @@ class BackendTester:
         
         # Test server health first
         self.test_server_health()
+        
+        # Test database seeding and data integrity
+        print("\n🗄️ Testing Database and Data Integrity:")
+        self.test_database_seeding()
+        self.test_food_data_integrity()
+        self.test_activity_data_integrity()
+        self.test_api_response_format()
         
         # Test authentication endpoints
         print("\n📋 Testing Authentication Endpoints:")
