@@ -74,6 +74,15 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: 'Admin',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="shield-crown" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
