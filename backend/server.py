@@ -458,6 +458,7 @@ async def list_activation_codes(current_user: User = Depends(require_auth)):
     """Listar todos os códigos de ativação (ADMIN ONLY)"""
     ADMIN_EMAILS = [
         "isabela@ansanello.com",
+        "dgf281219@gmail.com",
     ]
     
     if current_user.email not in ADMIN_EMAILS:
