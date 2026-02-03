@@ -69,7 +69,12 @@ export default function AdminScreen() {
   const usedCodes = allCodes.filter(c => c.is_used);
 
   // Check if user is admin
-  const isAdmin = user?.email === 'isabela@ansanello.com';
+  const ADMIN_EMAILS = [
+    'dgf281219@gmail.com',
+    'isabela@ansanello.com',
+  ];
+  
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
 
   if (!isAdmin) {
     return (
