@@ -271,6 +271,12 @@ async def process_session(request: Request, response: Response):
     # Create SessionDataResponse
     session_data_response = SessionDataResponse(**user_data)
     
+    # Lista de emails SUPER ADMIN (não precisam de código de ativação)
+    SUPER_ADMIN_EMAILS = [
+        "dgf281219@gmail.com",
+        "isabela@ansanello.com",
+    ]
+    
     # Check if user exists
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     existing_user = await db.users.find_one(
@@ -280,16 +286,26 @@ async def process_session(request: Request, response: Response):
     
     if not existing_user:
         # Create new user
+        is_super_admin = session_data_response.email in SUPER_ADMIN_EMAILS
         new_user = {
             "user_id": user_id,
             "email": session_data_response.email,
             "name": session_data_response.name,
             "picture": session_data_response.picture,
+            "is_active": is_super_admin,  # Super admins são ativados automaticamente
+            "activation_code": "SUPER_ADMIN" if is_super_admin else None,
             "created_at": datetime.now(timezone.utc)
         }
         await db.users.insert_one(new_user)
     else:
         user_id = existing_user["user_id"]
+        
+        # Se for super admin e ainda não está ativo, ativar automaticamente
+        if session_data_response.email in SUPER_ADMIN_EMAILS and not existing_user.get("is_active", False):
+            await db.users.update_one(
+                {"user_id": user_id},
+                {"$set": {"is_active": True, "activation_code": "SUPER_ADMIN", "updated_at": datetime.now(timezone.utc)}}
+            )
     
     # Create session
     session_token = session_data_response.session_token
