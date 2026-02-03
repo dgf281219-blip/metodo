@@ -3,6 +3,12 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 
+// Emails que não precisam de código de ativação
+const SUPER_ADMIN_EMAILS = [
+  'dgf281219@gmail.com',
+  'isabela@ansanello.com',
+];
+
 export default function Index() {
   const { user, loading } = useAuth();
   const [ready, setReady] = useState(false);
@@ -22,8 +28,10 @@ export default function Index() {
   }
 
   if (user) {
-    // Check if user is activated
-    if (!user.is_active) {
+    // Super admins entram direto (não precisam de código)
+    const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(user.email);
+    
+    if (!isSuperAdmin && !user.is_active) {
       return <Redirect href="/activate" />;
     }
     
