@@ -352,8 +352,8 @@ async def generate_activation_codes(
     """
     # Lista de emails admin (você pode configurar)
     ADMIN_EMAILS = [
-        "isabela@ansanello.com",  # Adicione seu email aqui
-        # Adicione mais emails admin conforme necessário
+        "isabela@ansanello.com",
+        "dgf281219@gmail.com",  # Admin principal
     ]
     
     if current_user.email not in ADMIN_EMAILS:
